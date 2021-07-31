@@ -95,7 +95,7 @@ async def api_lnurl_callback(unique_hash):
             jsonify(
                 {"status": "ERROR", "reason": f"Wait {link.open_time - now} seconds."}
             ),
-            HTTPStatus.OK,
+            HTTPStatus.ACCEPTED,
         )
 
     try:
