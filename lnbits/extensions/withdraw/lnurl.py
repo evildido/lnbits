@@ -78,13 +78,13 @@ async def api_lnurl_callback(unique_hash):
     if not link:
         return (
             jsonify({"status": "ERROR", "reason": "LNURL-withdraw not found."}),
-            HTTPStatus.OK,
+            HTTPStatus.ACCEPTED,
         )
 
     if link.is_spent:
         return (
             jsonify({"status": "ERROR", "reason": "Withdraw is spent."}),
-            HTTPStatus.OK,
+            HTTPStatus.ACCEPTED,
         )
 
     if link.k1 != k1:
