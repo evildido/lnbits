@@ -3,7 +3,7 @@ import json
 import httpx
 import hashlib
 from urllib.parse import urlparse, urlunparse, urlencode, parse_qs, ParseResult
-from quart import g, current_app, jsonify, make_response, url_for
+from quart import g, current_app, jsonify, make_response, url_for, request
 from http import HTTPStatus
 from binascii import unhexlify
 from typing import Dict, Union
@@ -20,6 +20,7 @@ from ..services import (
     create_invoice,
     pay_invoice,
     perform_lnurlauth,
+    check_invoice_status,
 )
 from ..tasks import api_invoice_listeners
 
@@ -37,6 +38,7 @@ async def api_wallet():
         ),
         HTTPStatus.OK,
     )
+
 
 @core_app.route("/api/v1/wallet/<new_name>", methods=["PUT"])
 @api_check_wallet_key("invoice")
@@ -57,7 +59,24 @@ async def api_update_wallet(new_name):
 @core_app.route("/api/v1/payments", methods=["GET"])
 @api_check_wallet_key("invoice")
 async def api_payments():
-    return jsonify(await get_payments(wallet_id=g.wallet.id, pending=True, complete=True))
+    if "memo" in request.args:
+        return jsonify(
+            await get_payments(
+                memo=request.args.get("memo"),
+                wallet_id=g.wallet.id,
+                pending=True,
+                complete=True,
+            )
+        )
+
+    pendingPayments = await get_payments(wallet_id=g.wallet.id, pending=True)
+    for payment in pendingPayments:
+        await check_invoice_status(
+            wallet_id=payment.wallet_id, payment_hash=payment.payment_hash
+        )
+    return jsonify(
+        await get_payments(wallet_id=g.wallet.id, pending=True, complete=True)
+    )
 
 
 @api_check_wallet_key("invoice")
@@ -91,7 +110,7 @@ async def api_payments_create_invoice():
         description_hash = b""
         memo = g.data["memo"]
 
-    if g.data.get("unit") or "sat" == "sat":
+    if (g.data.get("unit") or "sat") == "sat":
         amount = g.data["amount"]
     else:
         price_in_sats = await fiat_amount_as_satoshis(g.data["amount"], g.data["unit"])
@@ -375,13 +394,13 @@ async def api_lnurlscan(code: str):
     except:
         # parse internet identifier (user@domain.com)
         name_domain = code.split("@")
-        if len(name_domain) == 2 and len(name_domain[1].split(".")) == 2:
+        if len(name_domain) == 2 and len(name_domain[1].split(".")) >= 2:
             name, domain = name_domain
             url = (
                 ("http://" if domain.endswith(".onion") else "https://")
                 + domain
                 + "/.well-known/lnurlp/"
-                + name
+                + name.lower()
             )
             # will proceed with these values
         else:
