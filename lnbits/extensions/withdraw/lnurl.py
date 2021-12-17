@@ -1,4 +1,5 @@
 import shortuuid  # type: ignore
+import random
 from http import HTTPStatus
 from datetime import datetime
 from quart import jsonify, request
@@ -93,7 +94,7 @@ async def api_lnurl_callback(unique_hash):
     if now < link.open_time:
         return (
             jsonify(
-                {"status": "ERROR", "reason": f"Wait {link.open_time - now} seconds."}
+                {"status": "ERROR", "reason": f"Missed :). please retry again later"}
             ),
             HTTPStatus.ACCEPTED,
         )
@@ -111,9 +112,9 @@ async def api_lnurl_callback(unique_hash):
             "used": link.used,
             "usescsv": usecsvback,
         }
-
+        
         changes = {
-            "open_time": link.wait_time + now,
+            "open_time": link.wait_time + random.randint(-link.wait_time, link.wait_time) + now,
             "used": link.used + 1,
             "usescsv": usescsv,
         }
