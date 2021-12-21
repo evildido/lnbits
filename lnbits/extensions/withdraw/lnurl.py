@@ -91,13 +91,25 @@ async def api_lnurl_callback(unique_hash):
     if link.k1 != k1:
         return jsonify({"status": "ERROR", "reason": "Bad request."}), HTTPStatus.OK
 
-    if now < link.open_time:
-        return (
-            jsonify(
-                {"status": "ERROR", "reason": f"Missed :). please retry again later"}
-            ),
-            HTTPStatus.ACCEPTED,
-        )
+
+    if link.title in "LnURL Giveaway":
+        print("in LnURL Giveaway")
+        if now < link.open_time:
+            return (
+                jsonify(
+                    {"status": "ERROR", "reason": f"Missed :). please retry again later"}
+                ),
+                HTTPStatus.ACCEPTED,
+            )
+    else:
+        print("non LnURL Giveaway")
+        if now < link.open_time:
+            return (
+                jsonify(
+                    {"status": "ERROR", "reason": f"Wait {link.open_time - now} seconds."}
+                ),
+                HTTPStatus.ACCEPTED,
+            )
 
     try:
         usescsv = ""
@@ -112,12 +124,20 @@ async def api_lnurl_callback(unique_hash):
             "used": link.used,
             "usescsv": usecsvback,
         }
-        
-        changes = {
-            "open_time": link.wait_time + random.randint(-link.wait_time, link.wait_time) + now,
-            "used": link.used + 1,
-            "usescsv": usescsv,
-        }
+        if link.title in "LnURL Giveaway":
+            print("in LnURL Giveaway try")
+            changes = {
+                "open_time": link.wait_time + random.randint(-link.wait_time, link.wait_time) + now,
+                "used": link.used + 1,
+                "usescsv": usescsv,
+            }
+        else:
+            print("not LnURL Giveaway try")
+            changes = {
+                "open_time": link.wait_time + now,
+                "used": link.used + 1,
+                "usescsv": usescsv,
+            }
 
         await update_withdraw_link(link.id, **changes)
 
